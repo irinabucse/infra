@@ -1,0 +1,101 @@
+version: "3.7"
+services:
+  selenoid:
+    hostname: selenoid
+    restart: always
+    image: aerokube/selenoid:1.1.1
+    volumes:
+      - ${PWD}/selenoid/browsers.json:/etc/selenoid/browsers.json
+    ports:
+      - "4444"
+    networks:
+      - backend
+
+  gitlab:
+    restart: always
+    image: gitlab/gitlab-ce:latest
+    hostname: ${GITLAB_HOST}
+    volumes:
+      - ${PWD}/gitlab/config:/etc/gitlab
+      - ${PWD}/gitlab/logs:/var/log/gitlab
+      - ${PWD}/gitlab/data:/var/opt/gitlab
+    ports:
+      - "${GITLAB_TLS_PORT}:443"
+      - "${GITLAB_PORT}:80"
+      - "${GITLAB_SSH_PORT}:22"
+    networks:
+      - backend
+    environment:
+      - OMNIBUS_GITLAB_CONFIG="external_url http://localhost"
+      - GITLAB_ROOT_PASSWORD=${GITLAB_ROOT_PASSWORD}
+
+  gitlab-runner:
+    hostname: gitlab-runner
+    restart: always
+    image: gitlab/gitlab-runner
+    volumes: ["${PWD}/gitlab/runner:/etc/gitlab-runner", "/var/run/docker.sock:/var/run/docker.sock:rw"]
+    environment:
+      - CI_SERVER_URL=https://${GITLAB_HOST}/
+    networks:
+      - backend
+    depends_on:
+      - gitlab
+
+  register-runner:
+    restart: 'no'
+    image: gitlab/gitlab-runner:alpine
+    volumes:
+    - "${PWD}/gitlab/runner:/etc/gitlab-runner"
+    command:
+    - register
+    - --non-interactive
+    - --locked=false
+    - --name="Python Runner"
+    - --executor=docker
+    - --docker-image=python:latest
+    - --docker-volumes=/var/run/docker.sock:/var/run/docker.sock
+    - --tag-list="docker,python"
+    - --docker-network-mode="infra_backend"
+    environment:
+    - CI_SERVER_URL=http://${GITLAB_HOST}/
+    - REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
+    networks:
+      - backend
+
+  allure:
+    restart: always
+    hostname: allure
+    image: frankescobar/allure-docker-service
+    ports:
+      - "4040:4040"
+      - "5050:5050"
+    environment:
+      - CHECK_RESULTS_EVERY_SECONDS=3
+      - KEEP_HISTORY="TRUE"
+    volumes:
+      - ${PWD}/allure-results:/app/allure-results
+    networks:
+      - backend
+
+  selenoid-ui:
+    hostname: selenoid-ui
+    restart: always
+    image: aerokube/selenoid-ui
+    ports:
+      - "9090:8080"
+    networks:
+      - frontend
+      - backend
+    command: ["--selenoid-uri", "http://selenoid:4444"]
+    depends_on:
+      - selenoid
+
+networks:
+  frontend:
+  backend:
+
+#volumes:
+#  gitlab-config:
+#  gitlab-logs:
+#  gitlab-data:
+#  gitlab-runner:
