@@ -1,0 +1,21 @@
+version: 1
+task_definition:
+  services:
+    selenoid:
+      cpu_shares: 128
+      mem_limit: 128MB
+    gitlab:
+      cpu_shares: 128
+      mem_limit: 128MB
+    gitlab-runner:
+      cpu_shares: 128
+      mem_limit: 128MB
+    register-runner:
+      cpu_shares: 128
+      mem_limit: 128MB
+    allure:
+      cpu_shares: 128
+      mem_limit: 128MB
+    selenoid-ui:
+      cpu_shares: 128
+      mem_limit: 128MB
