@@ -1,17 +1,20 @@
 version: "3.7"
 services:
   selenoid:
+    network_mode: bridge
     hostname: selenoid
     restart: always
-    image: aerokube/selenoid:1.1.1
+    image: aerokube/selenoid:1.9.2
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}/selenoid/browsers.json:/etc/selenoid/browsers.json
+      - ${PWD}/selenoid/video:/opt/selenoid/video
+      - ${PWD}/selenoid/logs:/opt/selenoid/logs
     ports:
       - "4444:4444"
-    networks:
-      - backend
 
   gitlab:
+    network_mode: bridge
     restart: always
     image: gitlab/gitlab-ce:latest
     hostname: ${GITLAB_HOST}
@@ -23,25 +26,25 @@ services:
       - "${GITLAB_TLS_PORT}:443"
       - "${GITLAB_PORT}:80"
       - "${GITLAB_SSH_PORT}:22"
-    networks:
-      - backend
     environment:
       - OMNIBUS_GITLAB_CONFIG="external_url http://localhost"
       - GITLAB_ROOT_PASSWORD=${GITLAB_ROOT_PASSWORD}
 
   gitlab-runner:
+    network_mode: bridge
     hostname: gitlab-runner
     restart: always
     image: gitlab/gitlab-runner
     volumes: ["${PWD}/gitlab/runner:/etc/gitlab-runner", "/var/run/docker.sock:/var/run/docker.sock:rw"]
     environment:
       - CI_SERVER_URL=https://${GITLAB_HOST}/
-    networks:
-      - backend
     depends_on:
+      - gitlab
+    links:
       - gitlab
 
   register-runner:
+    network_mode: bridge
     restart: 'no'
     image: gitlab/gitlab-runner:alpine
     volumes:
@@ -59,10 +62,13 @@ services:
     environment:
     - CI_SERVER_URL=http://${GITLAB_HOST}/
     - REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
-    networks:
-      - backend
+    depends_on:
+      - gitlab
+    links:
+      - gitlab
 
   allure:
+    network_mode: bridge
     restart: always
     hostname: allure
     image: frankescobar/allure-docker-service
@@ -74,28 +80,14 @@ services:
       - KEEP_HISTORY="TRUE"
     volumes:
       - ${PWD}/allure-results:/app/allure-results
-    networks:
-      - backend
 
   selenoid-ui:
+    network_mode: bridge
     hostname: selenoid-ui
     restart: always
     image: aerokube/selenoid-ui
     ports:
       - "9090:8080"
-    networks:
-      - frontend
-      - backend
     command: ["--selenoid-uri", "http://selenoid:4444"]
-    depends_on:
+    links:
       - selenoid
-
-networks:
-  frontend:
-  backend:
-
-#volumes:
-#  gitlab-config:
-#  gitlab-logs:
-#  gitlab-data:
-#  gitlab-runner:
