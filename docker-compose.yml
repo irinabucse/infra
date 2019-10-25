@@ -6,10 +6,10 @@ services:
     restart: always
     image: aerokube/selenoid:1.9.2
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}/selenoid/browsers.json:/etc/selenoid/browsers.json
-      - ${PWD}/selenoid/video:/opt/selenoid/video
-      - ${PWD}/selenoid/logs:/opt/selenoid/logs
+      - //var/run/docker.sock:/var/run/docker.sock
+      - ./selenoid/config:/etc/selenoid/
+      - ./selenoid/video:/opt/selenoid/video
+      - ./selenoid/logs:/opt/selenoid/logs
     ports:
       - "4444:4444"
 
@@ -19,9 +19,9 @@ services:
     image: gitlab/gitlab-ce:latest
     hostname: ${GITLAB_HOST}
     volumes:
-      - ${PWD}/gitlab/config:/etc/gitlab
-      - ${PWD}/gitlab/logs:/var/log/gitlab
-      - ${PWD}/gitlab/data:/var/opt/gitlab
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
     ports:
       - "${GITLAB_TLS_PORT}:443"
       - "${GITLAB_PORT}:80"
@@ -29,26 +29,28 @@ services:
     environment:
       - OMNIBUS_GITLAB_CONFIG="external_url http://localhost"
       - GITLAB_ROOT_PASSWORD=${GITLAB_ROOT_PASSWORD}
+    networks:
+      - backend
 
   gitlab-runner:
-    network_mode: bridge
     hostname: gitlab-runner
     restart: always
     image: gitlab/gitlab-runner
-    volumes: ["${PWD}/gitlab/runner:/etc/gitlab-runner", "/var/run/docker.sock:/var/run/docker.sock:rw"]
+    volumes: ["./gitlab/runner:/etc/gitlab-runner", "//var/run/docker.sock:/var/run/docker.sock:rw"]
     environment:
       - CI_SERVER_URL=https://${GITLAB_HOST}/
+    networks:
+      - backend
     depends_on:
       - gitlab
     links:
       - gitlab
 
   register-runner:
-    network_mode: bridge
     restart: 'no'
     image: gitlab/gitlab-runner:alpine
     volumes:
-    - "${PWD}/gitlab/runner:/etc/gitlab-runner"
+    - "./gitlab/runner:/etc/gitlab-runner"
     command:
     - register
     - --non-interactive
@@ -56,12 +58,14 @@ services:
     - --name="Python Runner"
     - --executor=docker
     - --docker-image=python:latest
-    - --docker-volumes=/var/run/docker.sock:/var/run/docker.sock
+    - --docker-volumes=//var/run/docker.sock:/var/run/docker.sock
     - --tag-list="docker,python"
     - --docker-network-mode="infra_backend"
     environment:
     - CI_SERVER_URL=http://${GITLAB_HOST}/
     - REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
+    networks:
+      - backend
     depends_on:
       - gitlab
     links:
@@ -79,7 +83,7 @@ services:
       - CHECK_RESULTS_EVERY_SECONDS=3
       - KEEP_HISTORY="TRUE"
     volumes:
-      - ${PWD}/allure-results:/app/allure-results
+      - ./allure-results:/app/allure-results
 
   selenoid-ui:
     network_mode: bridge
@@ -91,3 +95,12 @@ services:
     command: ["--selenoid-uri", "http://selenoid:4444"]
     links:
       - selenoid
+
+networks:
+  backend:
+
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
+  gitlab-runner:
