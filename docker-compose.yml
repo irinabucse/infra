@@ -1,10 +1,12 @@
 version: "3.7"
 services:
   selenoid:
-    network_mode: bridge
+    networks:
+      - backend
     hostname: selenoid
     restart: always
     image: aerokube/selenoid:1.9.2
+    command: -limit 4 -retry-count 1000 -container-network infra_backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}/selenoid/browsers.json:/etc/selenoid/browsers.json
@@ -14,7 +16,8 @@ services:
       - "4444:4444"
 
   gitlab:
-    network_mode: bridge
+    networks:
+      - backend
     restart: always
     image: gitlab/gitlab-ce:latest
     hostname: ${GITLAB_HOST}
@@ -31,7 +34,8 @@ services:
       - GITLAB_ROOT_PASSWORD=${GITLAB_ROOT_PASSWORD}
 
   gitlab-runner:
-    network_mode: bridge
+    networks:
+      - backend
     hostname: gitlab-runner
     restart: always
     image: gitlab/gitlab-runner
@@ -44,11 +48,13 @@ services:
       - gitlab
 
   register-runner:
-    network_mode: bridge
+    networks:
+      - backend
     restart: 'no'
     image: gitlab/gitlab-runner:alpine
     volumes:
-    - "${PWD}/gitlab/runner:/etc/gitlab-runner"
+      - "${PWD}/gitlab/runner:/etc/gitlab-runner"
+      - /var/run/docker.sock:/var/run/docker.sock
     command:
     - register
     - --non-interactive
@@ -57,8 +63,8 @@ services:
     - --executor=docker
     - --docker-image=python:latest
     - --docker-volumes=/var/run/docker.sock:/var/run/docker.sock
-    - --tag-list="docker,python"
-    - --docker-network-mode="infra_backend"
+    - --tag-list="python"
+    - --docker-network-mode="bridge"
     environment:
     - CI_SERVER_URL=http://${GITLAB_HOST}/
     - REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
@@ -68,7 +74,8 @@ services:
       - gitlab
 
   allure:
-    network_mode: bridge
+    networks:
+      - backend
     restart: always
     hostname: allure
     image: frankescobar/allure-docker-service
@@ -82,7 +89,8 @@ services:
       - ${PWD}/allure-results:/app/allure-results
 
   selenoid-ui:
-    network_mode: bridge
+    networks:
+      - backend
     hostname: selenoid-ui
     restart: always
     image: aerokube/selenoid-ui
@@ -91,3 +99,5 @@ services:
     command: ["--selenoid-uri", "http://selenoid:4444"]
     links:
       - selenoid
+networks:
+  backend:
