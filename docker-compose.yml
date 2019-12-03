@@ -61,7 +61,7 @@ services:
     - --locked=false
     - --name="Python Runner"
     - --executor=docker
-    - --docker-image=python:latest
+    - --docker-image=python:3.7
     - --docker-volumes=/var/run/docker.sock:/var/run/docker.sock
     - --tag-list="python"
     - --docker-network-mode="bridge"
