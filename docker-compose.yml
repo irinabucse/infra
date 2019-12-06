@@ -37,7 +37,7 @@ services:
     restart: always
     image: aerokube/selenoid-ui
     ports:
-      - "9090:8080"
+      - "9095:8080"
     command: ["--selenoid-uri", "http://selenoid:4444"]
     links:
       - selenoid
